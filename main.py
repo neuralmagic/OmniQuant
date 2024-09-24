@@ -73,6 +73,7 @@ def evaluate(lm, args, logger):
             lm.model.model.embed_tokens.to(input_device)
             lm.model.model.norm.to(output_device)
             lm.model.lm_head.to(output_device)
+            lm.model.model.embed_positions.to(input_device) 
         elif "falcon" in args.net.lower():
             map_layers_to_multi_gpus(lm.model.transformer.h)
             input_device = lm.model.transformer.h[0].device
