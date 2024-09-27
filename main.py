@@ -109,7 +109,7 @@ def evaluate(lm, args, logger):
         
         lm.model.eval()
 
-        for item in data:
+        for item in datai[:5]:
             question_id = item['question_id']
             content = item['turns'][0]['content']
 
@@ -121,7 +121,7 @@ def evaluate(lm, args, logger):
             with torch.no_grad():
                 output_ids = lm.model.generate(input_ids=input_ids,
                                 attention_mask=attention_mask,
-                                temperature=1e-5,
+                                do_sample=False,
                                 max_new_tokens=4096)
 
             answer_id = str(uuid.uuid4())
