@@ -124,8 +124,8 @@ def evaluate(lm, args, logger):
                 return_tensors="pt"
             ).to(lm.model.device)
 
-            inputs = lm.tokenizer(content, return_tensors='pt')
-            attention_mask = inputs['attention_mask'].to(lm.model.device)
+            # inputs = lm.tokenizer(content, return_tensors='pt')
+            # attention_mask = inputs['attention_mask'].to(lm.model.device)
 
             terminators = [
                 lm.tokenizer.eos_token_id,
