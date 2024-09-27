@@ -118,13 +118,14 @@ def evaluate(lm, args, logger):
             ]
 
             # Tokenize input and move input_ids to CUDA
-            input_ids = lm.tokenizer.apply_chat_template(
+            inputs = lm.tokenizer.apply_chat_template(
                 messages,
                 add_generation_prompt=True,
                 return_tensors="pt"
-            ).to(lm.model.device)
+            )
+            imput_ids = inputs['input_ids'].to(lm.device)
 
-            attention_mask = input_ids['attention_mask'].to(lm.device)
+            attention_mask = inputs['attention_mask'].to(lm.device)
 
             terminators = [
                 tokenizer.eos_token_id,
@@ -133,7 +134,7 @@ def evaluate(lm, args, logger):
 
             with torch.no_grad():
                 output_ids = lm.model.generate(input_ids=input_ids,
-                                attention_mask=attention_mask,
+                                #attention_mask=attention_mask,
                                 eos_token_id=terminators,
                                 do_sample=False,
                                 max_new_tokens=4096)
