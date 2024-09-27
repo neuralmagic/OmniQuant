@@ -122,10 +122,11 @@ def evaluate(lm, args, logger):
                 messages,
                 add_generation_prompt=True,
                 return_tensors="pt"
-            )
-            input_ids = inputs['input_ids'].to(lm.device)
+            ).to(lm.model.device)
 
-            attention_mask = inputs['attention_mask'].to(lm.device)
+            # Extract input_ids and attention_mask
+            input_ids = inputs['input_ids'].to(lm.model.device)
+            attention_mask = inputs['attention_mask'].to(lm.model.device)
 
             terminators = [
                 tokenizer.eos_token_id,
