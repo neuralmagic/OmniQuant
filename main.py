@@ -109,18 +109,32 @@ def evaluate(lm, args, logger):
         
         lm.model.eval()
 
-        for item in data[:5]:
+        for item in data[:2]:
             question_id = item['question_id']
             content = item['turns'][0]['content']
 
+            messages = [
+                {"role": "user", "content": content},
+            ]
+
             # Tokenize input and move input_ids to CUDA
-            inputs = lm.tokenizer(content, return_tensors='pt')
-            input_ids = inputs['input_ids'].to(lm.device)
+            input_ids = lm.tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                return_tensors="pt"
+            ).to(lm.model.device)
+
             attention_mask = inputs['attention_mask'].to(lm.device)
+
+            terminators = [
+                tokenizer.eos_token_id,
+                tokenizer.convert_tokens_to_ids("<|eot_id|>")
+            ]
 
             with torch.no_grad():
                 output_ids = lm.model.generate(input_ids=input_ids,
                                 attention_mask=attention_mask,
+                                eos_token_id=terminators,
                                 do_sample=False,
                                 max_new_tokens=4096)
 
