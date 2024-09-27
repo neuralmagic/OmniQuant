@@ -118,14 +118,13 @@ def evaluate(lm, args, logger):
             ]
 
             # Tokenize input and move input_ids to CUDA
-            inputs = lm.tokenizer.apply_chat_template(
+            input_ids = lm.tokenizer.apply_chat_template(
                 messages,
                 add_generation_prompt=True,
                 return_tensors="pt"
             ).to(lm.model.device)
 
-            # Extract input_ids and attention_mask
-            input_ids = inputs['input_ids'].to(lm.model.device)
+            inputs = lm.tokenizer(content, return_tensors='pt')
             attention_mask = inputs['attention_mask'].to(lm.model.device)
 
             terminators = [
