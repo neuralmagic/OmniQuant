@@ -128,13 +128,13 @@ def evaluate(lm, args, logger):
             attention_mask = inputs['attention_mask'].to(lm.model.device)
 
             terminators = [
-                tokenizer.eos_token_id,
-                tokenizer.convert_tokens_to_ids("<|eot_id|>")
+                lm.tokenizer.eos_token_id,
+                lm.tokenizer.convert_tokens_to_ids("<|eot_id|>")
             ]
 
             with torch.no_grad():
                 output_ids = lm.model.generate(input_ids=input_ids,
-                                #attention_mask=attention_mask,
+                                attention_mask=attention_mask,
                                 eos_token_id=terminators,
                                 do_sample=False,
                                 max_new_tokens=4096)
