@@ -134,7 +134,6 @@ def evaluate(lm, args, logger):
 
             with torch.no_grad():
                 output_ids = lm.model.generate(input_ids=input_ids,
-                                attention_mask=attention_mask,
                                 eos_token_id=terminators,
                                 do_sample=False,
                                 max_new_tokens=4096)
