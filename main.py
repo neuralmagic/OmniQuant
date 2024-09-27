@@ -123,7 +123,7 @@ def evaluate(lm, args, logger):
                 add_generation_prompt=True,
                 return_tensors="pt"
             )
-            imput_ids = inputs['input_ids'].to(lm.device)
+            input_ids = inputs['input_ids'].to(lm.device)
 
             attention_mask = inputs['attention_mask'].to(lm.device)
 
