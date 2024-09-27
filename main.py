@@ -109,7 +109,7 @@ def evaluate(lm, args, logger):
         
         lm.model.eval()
 
-        for item in data[:2]:
+        for item in data:
             question_id = item['question_id']
             content = item['turns'][0]['content']
 
