@@ -48,7 +48,7 @@ def omniquant(
     logger=None,
 ):
     logger.info("Starting ...")
-    
+
     # move embedding layer and first layer to target device
     model = lm.model
     dev = lm.device
@@ -134,7 +134,9 @@ def omniquant(
             if cache["i"] >= args.nsamples:
                 break
             try:
-                model(batch[0].to(dev))
+                model.model.embed_tokens = model.model.embed_tokens.cpu()
+                model.model.norm = model.model.norm.cpu()
+                model(batch[0])
             except ValueError:
                 pass
     
@@ -163,7 +165,7 @@ def omniquant(
     fp_inps = copy.deepcopy(inps)   # take output of fp model as input
     fp_inps_2 = copy.deepcopy(inps) if args.aug_loss else None # take output of quantization model as input
     
-    attention_mask = cache["attention_mask"]
+    attention_mask = cache["attention_mask"].to(dev)
 
     if attention_mask is not None:
         attention_mask_batch = attention_mask.repeat(args.batch_size,1,1,1) if args.deactive_amp else attention_mask.repeat(args.batch_size,1,1,1).float()
@@ -176,7 +178,7 @@ def omniquant(
 
     loss_func = torch.nn.MSELoss()
     if is_llama:
-        position_ids = cache["position_ids"]
+        position_ids = cache["position_ids"].to(dev)
     else:
         position_ids = None
 
@@ -200,7 +202,7 @@ def omniquant(
                     quantlinear = QuantLinear(module, args.weight_quant_params, args.act_quant_params)
                     add_new_module(name, qlayer, quantlinear)    
         else:
-            qlayer = DecoderLayer(lm.model.config, layer, args)
+            qlayer = DecoderLayer(lm.model.config, i, layer, args)
         qlayer = qlayer.to(dev)
 
         
@@ -210,9 +212,9 @@ def omniquant(
             with torch.no_grad():
                 with torch.cuda.amp.autocast():
                     for j in range(args.nsamples):
-                        fp_inps[j] = qlayer(fp_inps[j].unsqueeze(0), attention_mask=attention_mask,position_ids=position_ids)[0]
+                        fp_inps[j] = qlayer(fp_inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
                         if args.aug_loss:
-                            fp_inps_2[j] = qlayer(quant_inps[j].unsqueeze(0), attention_mask=attention_mask,position_ids=position_ids)[0]
+                            fp_inps_2[j] = qlayer(quant_inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
         # init smooth parameters
         set_quant_state(qlayer, weight_quant=False, act_quant=True)  # weight will be manually quantized before forward
         qlayer.let = args.let

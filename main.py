@@ -73,6 +73,7 @@ def evaluate(lm, args, logger):
             lm.model.model.embed_tokens.to(input_device)
             lm.model.model.norm.to(output_device)
             lm.model.lm_head.to(output_device)
+            lm.model.model.embed_positions.to(input_device) 
         elif "falcon" in args.net.lower():
             map_layers_to_multi_gpus(lm.model.transformer.h)
             input_device = lm.model.transformer.h[0].device
@@ -90,10 +91,88 @@ def evaluate(lm, args, logger):
         elif "falcon" in args.net.lower():
             lm.model.transformer = lm.model.transformer.to(lm.device)
 
+    if args.generate:
+        import requests
+        import json
+        import uuid
+        import time
+
+        results = []
+
+        # Fetch and run inference on data from GitHub
+        question_jsonl_url = "https://raw.githubusercontent.com/lm-sys/arena-hard-auto/main/data/arena-hard-v0.1/question.jsonl"
+        response = requests.get(question_jsonl_url)
+        if response.status_code == 200:
+            data = [json.loads(line) for line in response.text.splitlines()]
+        else:
+            raise Exception(f"Failed to download questions. Status code: {response.status_code}")
+        
+        lm.model.eval()
+
+        for item in data:
+            question_id = item['question_id']
+            content = item['turns'][0]['content']
+
+            messages = [
+                {"role": "user", "content": content},
+            ]
+
+            # Tokenize input and move input_ids to CUDA
+            input_ids = lm.tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                return_tensors="pt"
+            ).to(lm.model.device)
+
+            # inputs = lm.tokenizer(content, return_tensors='pt')
+            # attention_mask = inputs['attention_mask'].to(lm.model.device)
+
+            terminators = [
+                lm.tokenizer.eos_token_id,
+                lm.tokenizer.convert_tokens_to_ids("<|eot_id|>")
+            ]
+
+            with torch.no_grad():
+                output_ids = lm.model.generate(input_ids=input_ids,
+                                eos_token_id=terminators,
+                                do_sample=False,
+                                max_new_tokens=4096)
+
+            answer_id = str(uuid.uuid4())
+            model_id = "OmniQuant-8B-w4a16"
+            tstamp = time.time()
+            formatted_result = {
+                "question_id": question_id,
+                "answer_id": answer_id,
+                "model_id": model_id,
+                "choices": [
+                {
+                    "index": 0,
+                    "turns": [
+                        {
+                            "content": lm.tokenizer.decode(output_ids[0], skip_special_tokens=True),
+                            "token_len": len(lm.tokenizer.decode(output_ids[0], skip_special_tokens=True).split())
+                        }
+                    ]
+                }
+               ],
+            "tstamp": tstamp
+            }
+
+            results.append(formatted_result)
+
+        # Save results to a JSON file
+        output_file = os.path.join(args.save_dir, f"results_all.json")
+        with open(output_file, 'w') as f:
+            json.dump(results, f, indent=4)
+
+        logger.info(f"Results saved to {output_file}") 
+
+        return results 
 
     if args.eval_ppl:
         # for dataset in ["wikitext2", "ptb", "c4","ptb-new",'c4-new']:
-        for dataset in ["wikitext2", "c4"]:
+        for dataset in ["wikitext2"]:
             cache_testloader = f'{args.cache_dir}/testloader_{args.model_family}_{dataset}_all.cache'
             if os.path.exists(cache_testloader):
                 testloader = torch.load(cache_testloader)
@@ -204,6 +283,7 @@ def main():
     parser.add_argument("--seed", type=int, default=2, help="Seed for sampling the calibration data.")
     parser.add_argument("--tasks", default="")
     parser.add_argument("--eval_ppl", action="store_true")
+    parser.add_argument("--generate", action="store_true")
     parser.add_argument("--num_fewshot", type=int, default=0)
     parser.add_argument("--wbits", type=int, default=4)
     parser.add_argument("--abits", type=int, default=16)
@@ -342,6 +422,7 @@ def main():
         if args.let:
             act_scales = torch.load(args.act_scales)
             act_shifts = torch.load(args.act_shifts)
+        print("dataloader",  dataloader[0][0].size(), dataloader[0][1].size())
         omniquant(
             lm,
             args,
